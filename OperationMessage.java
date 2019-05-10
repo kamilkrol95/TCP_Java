@@ -4,41 +4,35 @@ import java.io.Serializable;
 
 public class OperationMessage implements Serializable {
 
-    private Integer stationID;
-    private String description;
-    private Integer productID;
+    private Product product;
+    private Station station;
 
     public OperationMessage() {
-        this.stationID = -1;
-        this.description = "NULL";
+        this.product = new Product();
+        this.station = new Station();
+        this.station.setStationID(-1);
+        this.station.setDescription("Not specified");
+        this.station.setState(State.DEFAULT);
     }
 
-    public OperationMessage(Integer stationID, String description) {
-        this.stationID = stationID;
-        this.description = description;
+    public OperationMessage(Station newStation, Product newProduct) {
+        this.station = newStation;
+        this.product = newProduct;
     }
 
-    public Integer getProductID() {
-        return productID;
+    public Product getProduct() {
+        return product;
     }
 
-    public Integer getStationID() {
-        return stationID;
+    public Station getStation() {
+        return station;
     }
 
-    public String getDescription() {
-        return description;
+    public void setProduct(Product product) {
+        this.product = product;
     }
 
-    public void setProductID(Integer productID) {
-        this.productID = productID;
-    }
-
-    public void setStationID(Integer stationID) {
-        this.stationID = stationID;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
+    public void setStation(Station station) {
+        this.station = station;
     }
 }
