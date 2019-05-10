@@ -1,42 +1,112 @@
 package udp;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
+import java.io.*;
 import java.net.*;
+import java.sql.*;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Server {
     private static ServerSocket aSocket;
     private static Socket dataSocket;
+    private OperationMessage incomingStationMessage;
 
-    public Server (int port) {
-        try {
-            aSocket = new ServerSocket(port);
-        }
-        catch (IOException ex) {
-            Logger.getLogger(Server.class.getName()).log(Level.SEVERE , null , ex);
-        }
+    private static Connection connectToDB() throws SQLException{
+        return DriverManager.getConnection("jdbc:mysql://localhost:3306/production_line?serverTimezone=UTC","root","krolkamil");
     }
 
-    private static void receiveMessage(ObjectInputStream objectInputStream) throws IOException, ClassNotFoundException {
-        OperationMessage stationMessage = (OperationMessage) objectInputStream.readObject();
+    private static void selectDBInfo(Server serverState) throws SQLException{
+        Connection connection = connectToDB();
 
-        // run script with received messages:
-        System.out.println("Received device: " + stationMessage.getStationID() + ":[" + stationMessage.getDescription() + "]");
-        System.out.println("Product at station: " + stationMessage.getProductID());
+        String sql = "select * from Products " +
+                "inner join ProductOrders on Products.ProductID = ProductOrders.ProductID " +
+                "where ProductOrders.OrderID = " + serverState.incomingStationMessage.getProduct().getOrderID();
+        Statement statement = connection.createStatement();
+        ResultSet rs = statement.executeQuery(sql);
+
+        while(rs.next()) {
+            serverState.incomingStationMessage.getProduct().setProductID(rs.getInt("ProductID"));
+            serverState.incomingStationMessage.getProduct().setDescription(rs.getString("Description"));
+            serverState.incomingStationMessage.getProduct().setCurrentOperation(rs.getInt("CurrentOperation"));
+
+            ArrayList<Integer> operations = new ArrayList<>();
+            for ( Integer i = 1; i <= 6; i++ ){
+                Integer operationID = rs.getInt("Operation" + i.toString());
+                if ( operationID > 0 ){
+                    operations.add(operationID);
+                }
+            }
+            serverState.incomingStationMessage.getProduct().setOperation(operations.toArray(new Integer[0]));
+        }
+
+        sql = "select * from Stations where StationID = " + serverState.incomingStationMessage.getStation().getStationID();
+        statement = connection.createStatement();
+        rs = statement.executeQuery(sql);
+
+        while(rs.next()) {
+            serverState.incomingStationMessage.getStation().setDescription(rs.getString("Description"));
+        }
+
+        connection.close();
     }
 
-    private static void loop() throws IOException, ClassNotFoundException {
+    private static void updateDBInfo(Server serverState) throws SQLException {
+        Connection connection = connectToDB();
+
+        Integer currentOperation = serverState.incomingStationMessage.getProduct().getCurrentOperation();
+        if (serverState.incomingStationMessage.getProduct().getOperation()[currentOperation - 1].equals(serverState.incomingStationMessage.getStation().getStationID())) {
+            int nextOperation = currentOperation + 1;
+            if (nextOperation > serverState.incomingStationMessage.getProduct().getOperation().length){
+                // set the proper product state
+                nextOperation = 1;
+            }
+            serverState.incomingStationMessage.getProduct().setCurrentOperation(nextOperation);
+            PreparedStatement preparedStatement  = connection.prepareStatement("UPDATE ProductOrders SET CurrentOperation = ? WHERE OrderID = ?");
+            preparedStatement.setInt(1, serverState.incomingStationMessage.getProduct().getCurrentOperation());
+            preparedStatement.setInt(2, serverState.incomingStationMessage.getProduct().getOrderID());
+            preparedStatement.execute();
+            serverState.incomingStationMessage.getStation().setState(State.WORK);
+        }
+        else {
+            serverState.incomingStationMessage.getStation().setState(State.PASS);
+        }
+
+        connection.close();
+    }
+
+    private static Server receiveMessage(ObjectInputStream objectInputStream) throws IOException, ClassNotFoundException, SQLException {
+        Server serverState = new Server();
+        serverState.incomingStationMessage = (OperationMessage) objectInputStream.readObject();
+
+        System.out.println("Received data:");
+        System.out.println(serverState.incomingStationMessage.getProduct().toString());
+        System.out.println(serverState.incomingStationMessage.getStation().toString());
+
+        selectDBInfo(serverState);
+        updateDBInfo(serverState);
+
+        return serverState;
+    }
+
+    private static OperationMessage sendMessage(Server serverState) {
+        return serverState.incomingStationMessage;
+    }
+
+    private static void loop() throws IOException, ClassNotFoundException, SQLException {
         aSocket = new ServerSocket(9876);
 
         while (true) {
-            System.out.println("Server waiting for connections...");
+            System.out.println("Server waiting for connections...\n");
             dataSocket = aSocket.accept();
             InputStream inputStream = dataSocket.getInputStream();
             ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
-            receiveMessage(objectInputStream);
+            Server server = receiveMessage(objectInputStream);
+
+            OutputStream outputStream = dataSocket.getOutputStream();
+            ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
+            System.out.println("\nSending message to client!\n");
+            objectOutputStream.writeObject(sendMessage(server));
         }
     }
 
@@ -44,7 +114,7 @@ public class Server {
         try {
             loop();
         }
-        catch (ClassNotFoundException | IOException ex) {
+        catch (SQLException | ClassNotFoundException | IOException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE , null , ex);
         }
     }

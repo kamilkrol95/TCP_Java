@@ -1,8 +1,6 @@
 package udp;
 
-import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.Socket;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -31,6 +29,7 @@ public class Client  {
         this.port = Integer.parseInt(args[1]);
     }
 
+    // default values - DEBUGGING
     private void setStationInfo() {
         this.station = new Station(2, "Drilling");
     }
@@ -40,42 +39,67 @@ public class Client  {
     }
 
     private OperationMessage setMessage() {
-        OperationMessage operationMessage = new OperationMessage(this.station.getStationID(), this.station.getDescription());
-        operationMessage.setProductID(this.product.getProductID());
-
-        return operationMessage;
+        return new OperationMessage(this.station, this.product);
     }
 
-    private static void productArrive(String[] connectionArguments) throws IOException {
-        Client client = new Client(connectionArguments);
+    private void scanBarcode(String[] args){
+        Integer scannedStationID = Integer.parseInt(args[2]);
+        Integer scannedOrderID = Integer.parseInt(args[3]);
+        this.product = new Product(scannedOrderID);
+        this.station = new Station(scannedStationID);
+    }
 
-        client.setStationInfo();
-        client.setProductInfo();
+    private static void receiveMessage(Client currentClient, ObjectInputStream objectInputStream) throws IOException, ClassNotFoundException{
+        OperationMessage incomingMessage = (OperationMessage) objectInputStream.readObject();
+        currentClient.station = incomingMessage.getStation();
+        currentClient.product = incomingMessage.getProduct();
 
-        Socket socket = new Socket(client.getHost(), client.getPort());
+        System.out.println("\nReceived data:");
+        System.out.println(currentClient.product.toString());
+        System.out.println(currentClient.station.toString());
+    }
+
+    private static void productArrive(Client client, String[] connectionArguments) throws IOException, ClassNotFoundException {
+
+        if (connectionArguments.length < 4){
+            client.setStationInfo();
+            client.setProductInfo();
+        }
+        else {
+            client.scanBarcode(connectionArguments);
+        }
+
+        Socket dataSocket = new Socket(client.getHost(), client.getPort());
         System.out.println("Connected!");
 
-        OutputStream outputStream = socket.getOutputStream();
+        OutputStream outputStream = dataSocket.getOutputStream();
         ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
 
         System.out.println("Sending message to server!");
         objectOutputStream.writeObject(client.setMessage());
-        System.out.println("Closing socket!");
-        socket.close();
+
+        System.out.println("Waiting for server response...");
+        InputStream inputStream = dataSocket.getInputStream();
+        ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
+        receiveMessage(client, objectInputStream);
+
+        System.out.println("\nClosing socket!");
+        dataSocket.close();
     }
 
     public static void main(String[] args) {
 
         if (args.length < 2){
-            System.out.printf("udp Client usage: <host name> <port>");
+            System.out.println("udp Client usage: <host name> <port>");
             System.out.println("Exiting with code 1");
             System.exit(1);
         }
         else {
             try {
-            productArrive(args);
+                Client client = new Client(args);
+                productArrive(client, args);
             }
-            catch (IOException ex) {
+            catch (ClassNotFoundException | IOException ex) {
                 Logger.getLogger(Client.class.getName()).log(Level.SEVERE , null , ex);
             }
         }
