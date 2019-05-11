@@ -2,19 +2,23 @@ package udp;
 
 import java.io.Serializable;
 
-enum State {
-    WORK, PASS, FAILURE, DEFAULT
+enum StationState {
+    WORK, PASS, DEFAULT
 }
 
 public class Station implements Serializable {
 
     private Integer stationID;
     private String description;
-    private State state = State.DEFAULT;
+    private StationState stationState = StationState.DEFAULT;
 
     @Override
     public String toString(){
-        return "[STATION ID: " + stationID + "]-> [" + description + "], State: [" + state.toString() + "]";
+        return "[STATION ID: " + stationID + " (" + description + ")], State: [" + stationState.toString() + "]";
+    }
+
+    public String stationIDToString() {
+        return "[STATION ID: " + stationID + "]";
     }
 
     public Station() {
@@ -39,8 +43,8 @@ public class Station implements Serializable {
         return stationID;
     }
 
-    public State getState() {
-        return state;
+    public StationState getState() {
+        return stationState;
     }
 
     public void setDescription(String description) {
@@ -51,7 +55,7 @@ public class Station implements Serializable {
         this.stationID = stationID;
     }
 
-    public void setState(State state) {
-        this.state = state;
+    public void setState(StationState stationState) {
+        this.stationState = stationState;
     }
 }
