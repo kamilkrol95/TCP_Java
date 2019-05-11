@@ -29,6 +29,7 @@ public class Server {
             serverState.incomingStationMessage.getProduct().setProductID(rs.getInt("ProductID"));
             serverState.incomingStationMessage.getProduct().setDescription(rs.getString("Description"));
             serverState.incomingStationMessage.getProduct().setCurrentOperation(rs.getInt("CurrentOperation"));
+            serverState.incomingStationMessage.getProduct().setState(ProductState.getProductState(rs.getInt("State")));
 
             ArrayList<Integer> operations = new ArrayList<>();
             for ( Integer i = 1; i <= 6; i++ ){
@@ -55,21 +56,30 @@ public class Server {
         Connection connection = connectToDB();
 
         Integer currentOperation = serverState.incomingStationMessage.getProduct().getCurrentOperation();
+
         if (serverState.incomingStationMessage.getProduct().getOperation()[currentOperation - 1].equals(serverState.incomingStationMessage.getStation().getStationID())) {
+
             int nextOperation = currentOperation + 1;
             if (nextOperation > serverState.incomingStationMessage.getProduct().getOperation().length){
-                // set the proper product state
+                serverState.incomingStationMessage.getProduct().setState(ProductState.DONE);
                 nextOperation = 1;
             }
+
             serverState.incomingStationMessage.getProduct().setCurrentOperation(nextOperation);
-            PreparedStatement preparedStatement  = connection.prepareStatement("UPDATE ProductOrders SET CurrentOperation = ? WHERE OrderID = ?");
+
+            if (serverState.incomingStationMessage.getProduct().getCurrentOperation() > 1) {
+                serverState.incomingStationMessage.getProduct().setState(ProductState.IN_PROGRESS);
+            }
+
+            PreparedStatement preparedStatement  = connection.prepareStatement("UPDATE ProductOrders SET CurrentOperation = ?, State = ? WHERE OrderID = ?");
             preparedStatement.setInt(1, serverState.incomingStationMessage.getProduct().getCurrentOperation());
-            preparedStatement.setInt(2, serverState.incomingStationMessage.getProduct().getOrderID());
+            preparedStatement.setInt(2, serverState.incomingStationMessage.getProduct().getState().ordinal());
+            preparedStatement.setInt(3, serverState.incomingStationMessage.getProduct().getOrderID());
             preparedStatement.execute();
-            serverState.incomingStationMessage.getStation().setState(State.WORK);
+            serverState.incomingStationMessage.getStation().setState(StationState.WORK);
         }
         else {
-            serverState.incomingStationMessage.getStation().setState(State.PASS);
+            serverState.incomingStationMessage.getStation().setState(StationState.PASS);
         }
 
         connection.close();
@@ -80,11 +90,15 @@ public class Server {
         serverState.incomingStationMessage = (OperationMessage) objectInputStream.readObject();
 
         System.out.println("Received data:");
-        System.out.println(serverState.incomingStationMessage.getProduct().toString());
-        System.out.println(serverState.incomingStationMessage.getStation().toString());
+        System.out.println(serverState.incomingStationMessage.getProduct().orderIDToString());
+        System.out.println(serverState.incomingStationMessage.getStation().stationIDToString());
 
         selectDBInfo(serverState);
         updateDBInfo(serverState);
+
+        System.out.println("\nCurrent data:");
+        System.out.println(serverState.incomingStationMessage.getProduct().toString());
+        System.out.println(serverState.incomingStationMessage.getStation().toString());
 
         return serverState;
     }
