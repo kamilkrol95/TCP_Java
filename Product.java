@@ -1,6 +1,33 @@
 package udp;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+
+enum ProductState {
+    TODO,
+    IN_PROGRESS,
+    DONE;
+
+    private static Map<Integer, ProductState> CACHE = null;
+
+    private static void fillCACHE(){
+        if (CACHE != null){
+            return;
+        }
+
+        final Map<Integer, ProductState> cache = new HashMap<>();
+        for ( ProductState productState : ProductState.values()){
+            cache.put(productState.ordinal(), productState);
+        }
+        CACHE = cache;
+    }
+
+    public static ProductState getProductState(int id){
+        fillCACHE();
+        return CACHE.get(id);
+    }
+}
 
 public class Product implements Serializable {
 
@@ -9,10 +36,15 @@ public class Product implements Serializable {
     private String description;
     private Integer[] operation = new Integer[3];
     private Integer currentOperation;
+    private ProductState productState = ProductState.TODO;
 
     @Override
-    public String toString(){
-        return "[PRODUCT ID: " + productID + "]-> [" + description + "], [Current Operation: " + currentOperation + "] [OrderID: " + orderID + "]";
+    public String toString() {
+        return "[PRODUCT ID: " + productID + " (" + description + ")], [Current Operation: " + currentOperation + "] [OrderID: " + orderID + "] [State: " + productState + "]";
+    }
+
+    public String orderIDToString() {
+        return "[ORDER ID: " + orderID + "]";
     }
 
     public Product() {
@@ -49,6 +81,10 @@ public class Product implements Serializable {
         return operation;
     }
 
+    public ProductState getState() {
+        return productState;
+    }
+
     public void setOrderID(Integer orderID) {
         this.orderID = orderID;
     }
@@ -67,5 +103,9 @@ public class Product implements Serializable {
 
     public void setOperation(Integer[] operation) {
         this.operation = operation;
+    }
+
+    public void setState(ProductState productState) {
+        this.productState = productState;
     }
 }
