@@ -12,7 +12,7 @@ public class OperationMessage implements Serializable {
         this.station = new Station();
         this.station.setStationID(-1);
         this.station.setDescription("Not specified");
-        this.station.setState(State.DEFAULT);
+        this.station.setState(StationState.DEFAULT);
     }
 
     public OperationMessage(Station newStation, Product newProduct) {
