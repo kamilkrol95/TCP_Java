@@ -60,6 +60,23 @@ Then when launching the java file we can simply use:
 ```bash
 $ java udp.Client <Server IP address> <Server TCP port>
 ```
+## Running Server Script
+
+Similar to running Client Script, but you need to run server first, before any client. 
+
+If you already source all neccessary paths and you are in git repository directory, only thing left to do is to run Server application:
+
+```bash
+$ java udp.Server
+```
+
+In case there are still some missing paths, you can use '-cp' paramter followed by all required packages:
+
+```bash
+$ java -cp /usr/share/java/mysql-connector-java-8.0.16.jar:~/IdeaProjects/JavaCommunication/out/production/JavaCommunication udp.Server
+```
+
+or just use scripts, which are described below.
 
 ## Plug & play 
 
@@ -84,10 +101,10 @@ where:
 If you like, you can change the index of station by changing the following number in script:
 
 ```bash
-$ java -cp $parent_path udp.Client localhost 9876 <stattion_ID> $1
+$ java -cp $parent_path udp.Client localhost 9876 <station_ID> $1
 ```
 
-FYI
+## FYI
 1) Running server script should source all necessary java libraries to make it possible to run application (if all of previous dependencies are installed already), then it start the server console application and server is running until it is shut down (Ctrl + C)
 2) Running each of station scripts with orderID paramteter simulates arrival of product at specific station, you need to run client script for every station each time you want to simualte barcode scanning 
 
